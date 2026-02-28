@@ -1,6 +1,8 @@
 #include "smart_ptr.h"
+#include "types.h"
 #include <assert.h>
 #include <stdarg.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
@@ -41,38 +43,70 @@ inline void sdestructor(smart_ptr* p)
 }
 */
 
-// called everytime variable leaves scope
-inline void decref(smart_ptr **p)
-{
-    (*p)->refcount--;
 
-    if ((*p)->refcount == 0) {
-        sdestructor(*p);
+void s_assign(void **dst, void *src)
+{
+    if (*dst == src) {
+        return;
+    }
+    if (src) {
+        incref(get_s(src));
+    }
+
+    if (*dst) {
+        decref(dst);
+    }
+
+    *dst = src;
+}
+
+// called everytime variable leaves scope
+inline void decref(void *p)
+{
+    printf("called decref \n");
+    void *user_ptr = *(void **)p;
+
+    if (!user_ptr) {
+        return;
+    }
+    smart_ptr *start = get_s(user_ptr);
+    printf("ref count is %zu \n", start->refcount);
+    if ((--(start->refcount)) == 0) {
+        printf("refcount is 0 \n");
+        if (NULL != start->dtor) {
+            printf("calling sdestructor\n");
+            start->dtor(start);
+        }
     }
 }
 
 // end of decref
 
-inline static smart_ptr *get_s(smart_ptr *p) { return p->ptr; } // end of gets
-
-__attribute__((malloc)) void *smalloc(u32 size, void (*dtor)(smart_ptr *))
+inline static smart_ptr *get_s(void *ptr)
 {
-    smart_ptr *p = malloc(sizeof(smart_ptr));
+    if (!ptr) {
+        return NULL;
+    }
 
-    *p = (smart_ptr){
-        .dtor = dtor,
-        .refcount = 1,
-        .ptr = malloc(size) // add refcount padding
-    };
+    return (smart_ptr *)((char *)ptr - offsetof(smart_ptr, data));
+} // end of gets
 
-    return p;
-} // end of smalloc
-
-inline void sdestructor(smart_ptr *p)
+__attribute__((malloc)) void *smalloc(u32 size, void (*dtor)(void *))
 {
-    free(p->ptr);
-    free((smart_ptr *)p);
+
+    // Allocate the header + the user's requested size
+    smart_ptr *p = malloc(sizeof(smart_ptr) + size);
+    if (!p) {
+        return NULL;
+    }
+    p->num_bytes = size;
+    p->dtor = dtor;
+    p->refcount = 1;
+
+    return (void *)p->data;
 }
+
+inline void sdestructor(void *p) { free(p); }
 
 void sfree(smart_ptr *ptr)
 {
@@ -80,19 +114,18 @@ void sfree(smart_ptr *ptr)
         return;
     }
     smart_ptr *meta = get_s(ptr);
-    assert(ptr == meta->ptr); // ptr will be a pointer returned by smalloc
 
 } // end of sfree
 
 inline void incref(smart_ptr *ptr) { ptr->refcount++; }
 
-inline smart_ptr *move(smart_ptr *ptr)
+inline void s_cpy(void *this, void *that)
 {
-    if (ptr) {
-        incref(ptr);
-    }
-    return ptr;
-} // smart_ptr*
+    smart_ptr *in = get_s(this);
+    smart_ptr *out = get_s(that);
+
+    memcpy(out, in, in->num_bytes);
+}
 
 typedef struct {
     f32 x;
@@ -101,6 +134,15 @@ typedef struct {
 
 int main(void)
 {
-    smart smart_ptr *my_s_ptr = smalloc(20, &sdestructor);
+    smart smart_ptr *my_s_ptr = smalloc(sizeof(vec2), &sdestructor);
+    printf("made smart ptr \n");
+
+    smart smart_ptr *p2 = NULL;
+
+    set(p2, my_s_ptr);
+
+    printf("Pointers linked. Refcount: %zu\n", get_s(p2)->refcount);
+
+
     return 0;
 }

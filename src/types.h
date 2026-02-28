@@ -1,8 +1,11 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-#include <stdbool.h>
+
+#ifndef MY_TYPES_H
+#define MY_TYPES_H
 #include <math.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
 typedef int8_t i8;
 typedef int16_t i16;
@@ -25,5 +28,4 @@ typedef float f32;
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define ALIGN_UP_POW2(n, p) (((u64)(n) + ((u64)(p) - 1)) & (~((u64)(p) - 1)))
-
-
+#endif // !DEBUG
