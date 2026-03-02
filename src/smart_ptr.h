@@ -5,6 +5,12 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#ifndef SMART_PTR_HEADER
+
+#define SMART_PTR_HEADER
+#define ZEROED_MEM 1
+#define UNZEROD_MEM 0
+
 typedef struct {
     void (*dtor)(void *);
     size_t num_bytes;
@@ -14,12 +20,12 @@ typedef struct {
 
 static smart_ptr *get_s(void *ptr);
 // constructor
-void *smalloc(u32 size, void (*f)(void *));
+void *smalloc(u32 size, void (*f)(void *), b8 iszeroed);
 
 // destructor
 void sfree(smart_ptr *ptr);
 
-void sdestructor(void *p);
+void sdes(void *p);
 // accessor
 
 // wtf is this garbage
@@ -32,9 +38,12 @@ void incref(smart_ptr *ptr);
 void s_cpy(void *tis, void *that);
 void variadic_func(const char *format, ...);
 void s_assign(void **dst, void *src);
-#define smart __attribute__((cleanup(decref)))
 
-// assignment operator
+
+
+#define smart(name, atype, dstrtr, iszeroed)                                   \
+    __attribute__((cleanup(decref))) atype *name =                             \
+        smalloc(sizeof(atype), (dstrtr), (iszeroed))
 
 
 
@@ -45,4 +54,7 @@ void s_assign(void **dst, void *src);
     } while (0)
 
 
+// assignment operator
 #define set(dst, src) s_assign((void **)&(dst), (src))
+
+#endif // end of SMART_PTR_HEADER

@@ -63,18 +63,18 @@ void s_assign(void **dst, void *src)
 // called everytime variable leaves scope
 inline void decref(void *p)
 {
-    printf("called decref \n");
+    //  printf("called decref \n");
     void *user_ptr = *(void **)p;
 
     if (!user_ptr) {
         return;
     }
     smart_ptr *start = get_s(user_ptr);
-    printf("ref count is %zu \n", start->refcount);
+    //   printf("ref count is %zu \n", start->refcount);
     if ((--(start->refcount)) == 0) {
-        printf("refcount is 0 \n");
+        //        printf("refcount is 0 \n");
         if (NULL != start->dtor) {
-            printf("calling sdestructor\n");
+            //            printf("calling sdestructor\n");
             start->dtor(start);
         }
     }
@@ -91,11 +91,17 @@ inline static smart_ptr *get_s(void *ptr)
     return (smart_ptr *)((char *)ptr - offsetof(smart_ptr, data));
 } // end of gets
 
-__attribute__((malloc)) void *smalloc(u32 size, void (*dtor)(void *))
+__attribute__((malloc)) void *smalloc(u32 size, void (*dtor)(void *),
+                                      b8 iszeroed)
 {
-
+    smart_ptr *p;
     // Allocate the header + the user's requested size
-    smart_ptr *p = malloc(sizeof(smart_ptr) + size);
+    if (iszeroed) {
+        p = calloc(1, (sizeof(smart_ptr) + size));
+    } else {
+
+        p = malloc(sizeof(smart_ptr) + size);
+    }
     if (!p) {
         return NULL;
     }
@@ -106,7 +112,7 @@ __attribute__((malloc)) void *smalloc(u32 size, void (*dtor)(void *))
     return (void *)p->data;
 }
 
-inline void sdestructor(void *p) { free(p); }
+inline void sdes(void *p) { free(p); }
 
 void sfree(smart_ptr *ptr)
 {
@@ -132,16 +138,34 @@ typedef struct {
     f32 y;
 } vec2;
 
+int dot(vec2 *a, vec2 *b) { return (a->x * b->x) + (a->y * b->y); }
+
+void printvec(vec2 *that) { printf("x:%f, y:%f \n", that->x, that->y); }
+
 int main(void)
 {
-    smart smart_ptr *my_s_ptr = smalloc(sizeof(vec2), &sdestructor);
-    printf("made smart ptr \n");
+    // initialize a smart_ptr with zeroe'd mem
+    smart(vec_ptr, vec2, &sdes, ZEROED_MEM);
+    vec_ptr->x = 3;
+    vec_ptr->y = 9;
 
-    smart smart_ptr *p2 = NULL;
 
-    set(p2, my_s_ptr);
+    smart(v2, vec2, &sdes, ZEROED_MEM); // initialize a smart_ptr with
+    v2->x = 4;
+    v2->y = 1;
 
-    printf("Pointers linked. Refcount: %zu\n", get_s(p2)->refcount);
+
+    printf("v1: \n");
+    printvec(vec_ptr);
+    printf("v2: \n");
+    printvec(v2);
+
+    printf("dot product is : %d\n", dot(vec_ptr, v2));
+
+
+    for (int i = 0; i < 100000; i++) {
+        smart(v8, vec2, &sdes, ZEROED_MEM);
+    }
 
 
     return 0;
